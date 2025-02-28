@@ -27,7 +27,7 @@ fi
 
 # 设置安装目录
 INSTALL_DIR="/opt/proxy_tester"
-GITHUB_REPO="https://github.com/zhizhu/jiance.git"
+GITHUB_REPO="https://github.com/DavisNova/nodeproxycheck.git"
 
 # 1. 安装系统依赖
 info "正在安装系统依赖..."

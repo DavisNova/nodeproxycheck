@@ -8,7 +8,7 @@
 
 ```bash
 # 1. 下载安装脚本
-wget https://raw.githubusercontent.com/zhizhu/jiance/main/install.sh
+wget https://raw.githubusercontent.com/DavisNova/nodeproxycheck/main/install.sh
 
 # 2. 添加执行权限
 chmod +x install.sh
@@ -28,8 +28,8 @@ sudo ./install.sh
 
 1. 克隆代码仓库：
 ```bash
-git clone https://github.com/zhizhu/jiance.git
-cd jiance
+git clone https://github.com/DavisNova/nodeproxycheck.git
+cd nodeproxycheck
 ```
 
 2. 安装系统依赖：
