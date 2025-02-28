@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>代理测试系统</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.0.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .log-container {
+            height: 300px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            padding: 10px;
+            font-family: monospace;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        .file-requirements {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .tooltip-icon {
+            cursor: help;
+            color: #6c757d;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>代理测试系统</h2>
+        
+        <!-- 文件上传区域 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                文件上传
+            </div>
+            <div class="card-body">
+                <form id="uploadForm">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">
+                            选择Excel文件
+                            <i class="tooltip-icon" data-bs-toggle="tooltip" data-bs-placement="right" 
+                               title="Excel文件(.xls或.xlsx)必须包含至少5列数据，第4列(D列)为代理账号，第5列(E列)为代理密码">ⓘ</i>
+                        </label>
+                        <input type="file" class="form-control" id="file" accept=".xls,.xlsx" required>
+                        <div class="file-requirements">
+                            <strong>文件要求：</strong>
+                            <ul>
+                                <li>必须是Excel文件（.xls或.xlsx格式）</li>
+                                <li>必须包含至少5列数据</li>
+                                <li>第4列(D列)必须是代理账号</li>
+                                <li>第5列(E列)必须是代理密码</li>
+                                <li>建议单次测试数据不超过1000条</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="concurrency" class="form-label">
+                            并发数量（1-500）
+                            <i class="tooltip-icon" data-bs-toggle="tooltip" data-bs-placement="right" 
+                               title="建议：数据量<100使用默认值50，数据量>100可适当增加，但不超过500">ⓘ</i>
+                        </label>
+                        <input type="number" class="form-control" id="concurrency" min="1" max="500" value="50" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="startBtn">开始测试</button>
+                    <button type="button" class="btn btn-danger" id="stopBtn" disabled>停止测试</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 进度显示区域 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                测试进度
+            </div>
+            <div class="card-body">
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <strong>成功数量:</strong> <span id="successCount">0</span>
+                    </div>
+                    <div class="col">
+                        <strong>失败数量:</strong> <span id="failureCount">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志显示区域 -->
+        <div class="card">
+            <div class="card-header">
+                测试日志
+                <button class="btn btn-sm btn-secondary float-end" id="clearLog">清除日志</button>
+            </div>
+            <div class="card-body">
+                <div class="log-container" id="logArea"></div>
+            </div>
+        </div>
+
+        <!-- 结果下载区域 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                测试结果
+            </div>
+            <div class="card-body">
+                <div id="downloadArea">
+                    <!-- 下载链接将在测试完成后显示在这里 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.0.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // 初始化所有工具提示
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
+
+            let isRunning = false;
+            let statusCheckInterval;
+            
+            function updateStatus() {
+                if (!isRunning) return;
+                
+                $.get('/status', function(data) {
+                    $('.progress-bar').css('width', data.progress + '%');
+                    $('.progress-bar').text(data.progress + '%');
+                    $('#successCount').text(data.success_count);
+                    $('#failureCount').text(data.failure_count);
+                    
+                    if (data.log_messages && data.log_messages.length > 0) {
+                        const logArea = $('#logArea');
+                        logArea.empty();
+                        data.log_messages.forEach(function(msg) {
+                            const className = msg.message.includes('成功') ? 'success' : 
+                                            msg.message.includes('失败') ? 'error' : '';
+                            logArea.append(`<div class="${className}">[${msg.time}] ${msg.message}</div>`);
+                        });
+                        logArea.scrollTop(logArea[0].scrollHeight);
+                    }
+                    
+                    if (!data.is_running && isRunning) {
+                        testCompleted();
+                    }
+                });
+            }
+
+            function testCompleted() {
+                isRunning = false;
+                clearInterval(statusCheckInterval);
+                $('#startBtn').prop('disabled', false);
+                $('#stopBtn').prop('disabled', true);
+                $('#file').prop('disabled', false);
+                $('#concurrency').prop('disabled', false);
+                
+                // 显示下载链接
+                $('#downloadArea').html(`
+                    <a href="/download" class="btn btn-success">下载测试结果</a>
+                `);
+            }
+
+            $('#uploadForm').submit(function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData();
+                const fileInput = $('#file')[0];
+                const concurrency = $('#concurrency').val();
+                
+                if (fileInput.files.length === 0) {
+                    alert('请选择文件');
+                    return;
+                }
+                
+                if (concurrency < 1 || concurrency > 500) {
+                    alert('并发数量必须在1-500之间');
+                    return;
+                }
+                
+                formData.append('file', fileInput.files[0]);
+                formData.append('concurrency', concurrency);
+                
+                $('#startBtn').prop('disabled', true);
+                $('#stopBtn').prop('disabled', false);
+                $('#file').prop('disabled', true);
+                $('#concurrency').prop('disabled', true);
+                $('#downloadArea').empty();
+                $('#logArea').empty();
+                
+                $.ajax({
+                    url: '/upload',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        isRunning = true;
+                        statusCheckInterval = setInterval(updateStatus, 1000);
+                    },
+                    error: function(xhr, status, error) {
+                        alert('上传失败: ' + error);
+                        $('#startBtn').prop('disabled', false);
+                        $('#file').prop('disabled', false);
+                        $('#concurrency').prop('disabled', false);
+                    }
+                });
+            });
+
+            $('#stopBtn').click(function() {
+                $.post('/stop', function() {
+                    testCompleted();
+                });
+            });
+
+            $('#clearLog').click(function() {
+                $('#logArea').empty();
+            });
+        });
+    </script>
+</body>
+</html>
