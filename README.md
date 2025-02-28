@@ -1,6 +1,57 @@
-# 代理测试系统readme
+# 代理测试系统
 
 一个基于Flask的代理测试系统，用于批量测试代理服务器的可用性。
+
+## 快速安装
+
+### 方法一：使用安装脚本（推荐）
+
+```bash
+# 1. 下载安装脚本
+wget https://raw.githubusercontent.com/zhizhu/jiance/main/install.sh
+
+# 2. 添加执行权限
+chmod +x install.sh
+
+# 3. 运行安装脚本
+sudo ./install.sh
+```
+
+安装脚本会自动：
+- 安装所需的系统依赖
+- 克隆代码仓库
+- 创建Python虚拟环境
+- 安装Python依赖
+- 配置并启动服务
+
+### 方法二：手动安装
+
+1. 克隆代码仓库：
+```bash
+git clone https://github.com/zhizhu/jiance.git
+cd jiance
+```
+
+2. 安装系统依赖：
+```bash
+# Debian/Ubuntu
+sudo apt-get update
+sudo apt-get install -y python3 python3-pip curl
+
+# CentOS/RHEL
+sudo yum update -y
+sudo yum install -y python3 python3-pip curl
+```
+
+3. 安装Python依赖：
+```bash
+pip install -r requirements.txt
+```
+
+4. 运行服务：
+```bash
+python app.py
+```
 
 ## 项目结构
 ```
@@ -11,6 +62,7 @@ proxy_tester/
 │   └── index.html     # 前端页面
 ├── uploads/           # 上传文件目录
 ├── logs/             # 日志目录
+├── install.sh        # 安装脚本
 └── README.md         # 项目说明文档
 ```
 
@@ -113,6 +165,7 @@ sudo systemctl start proxy_tester
 - v1.0.0 (2024-02-28)
   - 初始版本发布
   - 基本功能实现
+  - 添加自动安装脚本
 
 ## 许可证
 
